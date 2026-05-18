@@ -93,7 +93,7 @@
       </div>
       <div class="leading-tight">
         <h1 class="font-semibold tracking-tight text-[15px]">InvoiceParsimus</h1>
-        <p class="text-[11px] text-zinc-500">Invoice Data Extractor · v0.3</p>
+        <p class="text-[11px] text-zinc-500">Invoice Data Extractor · v1.0</p>
       </div>
     </div>
 
@@ -126,7 +126,8 @@
       <p class="text-sm text-zinc-400 mt-1.5">Extract and sort PDF invoices directly in your browser.</p>
     </div>
     <div class="flex items-center gap-2">
-      <button class="px-4 py-2 text-sm rounded-lg bg-white/[0.04] hover:bg-white/[0.08] border border-white/10 text-zinc-200 transition flex items-center gap-2">
+      <!-- ID ADDED HERE FOR EXPORT -->
+      <button id="btn-export-csv" class="px-4 py-2 text-sm rounded-lg bg-white/[0.04] hover:bg-white/[0.08] border border-white/10 text-zinc-200 transition flex items-center gap-2">
         <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
         Export CSV
       </button>
@@ -139,7 +140,6 @@
 
   <!-- STATS CARDS -->
   <section class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-    <!-- Total Invoiced -->
     <div class="card relative overflow-hidden rounded-2xl bg-gradient-to-br from-zinc-900/90 to-zinc-900/40 border border-white/5 p-5">
       <div class="absolute -top-12 -right-12 w-36 h-36 rounded-full bg-violet-500/10 blur-2xl"></div>
       <div class="relative">
@@ -156,7 +156,6 @@
       </div>
     </div>
 
-    <!-- Total Tax Paid -->
     <div class="card relative overflow-hidden rounded-2xl bg-gradient-to-br from-zinc-900/90 to-zinc-900/40 border border-white/5 p-5">
       <div class="absolute -top-12 -right-12 w-36 h-36 rounded-full bg-rose-500/10 blur-2xl"></div>
       <div class="relative">
@@ -173,7 +172,6 @@
       </div>
     </div>
 
-    <!-- Invoices Processed -->
     <div class="card relative overflow-hidden rounded-2xl bg-gradient-to-br from-zinc-900/90 to-zinc-900/40 border border-white/5 p-5">
       <div class="absolute -top-12 -right-12 w-36 h-36 rounded-full bg-emerald-500/10 blur-2xl"></div>
       <div class="relative">
@@ -190,7 +188,6 @@
       </div>
     </div>
 
-    <!-- Active Vendors -->
     <div class="card relative overflow-hidden rounded-2xl bg-gradient-to-br from-zinc-900/90 to-zinc-900/40 border border-white/5 p-5">
       <div class="absolute -top-12 -right-12 w-36 h-36 rounded-full bg-sky-500/10 blur-2xl"></div>
       <div class="relative">
@@ -208,12 +205,8 @@
     </div>
   </section>
 
-  <!-- ============================================================
-       STAGE 3: VISUAL ANALYTICS (CHART.JS)
-  ============================================================ -->
+  <!-- VISUAL ANALYTICS -->
   <section class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-    
-    <!-- Monthly Spend Trend Chart -->
     <div class="card rounded-2xl bg-zinc-900/50 border border-white/5 p-5">
       <div class="flex items-center justify-between mb-4">
         <h3 class="text-sm font-semibold text-zinc-200">Monthly Spend Trend</h3>
@@ -224,7 +217,6 @@
       </div>
     </div>
 
-    <!-- Vendor Distribution Pie Chart -->
     <div class="card rounded-2xl bg-zinc-900/50 border border-white/5 p-5">
       <div class="flex items-center justify-between mb-4">
         <h3 class="text-sm font-semibold text-zinc-200">Vendor Distribution</h3>
@@ -234,7 +226,6 @@
         <canvas id="vendorChart"></canvas>
       </div>
     </div>
-
   </section>
 
   <!-- DROPZONE -->
@@ -324,7 +315,7 @@
       <span>InvoiceParsimus &copy; 2026 · Built for clarity</span>
     </div>
     <div class="flex items-center gap-4 font-mono">
-      <span>v0.3.0-analytics</span>
+      <span>v1.0.0-final</span>
       <span class="text-zinc-600">·</span>
       <span>local-only</span>
     </div>
@@ -346,24 +337,70 @@
   const dropzone = document.getElementById('dropzone');
   const fileInput = document.getElementById('file-input');
   const btnMockData = document.getElementById('btn-mock-data');
+  const btnExportCsv = document.getElementById('btn-export-csv');
   const tableBody = document.getElementById('invoice-table-body');
 
   // Chart instances
   let spendChartInstance = null;
   let vendorChartInstance = null;
-
-  // Modern UI Colors for Charts
   const chartColors = ['#8b5cf6', '#0ea5e9', '#10b981', '#f43f5e', '#f59e0b', '#ec4899'];
 
   /**
-   * INITIALIZE CHARTS (Empty State)
+   * DATA EXPORT (CSV COMPILATION)
+   * 1. Constructs standard CSV headers.
+   * 2. Iterates through the global appState array.
+   * 3. Quotes text strings to escape stray commas within descriptions or vendors.
+   * 4. Converts the string buffer to a Blob and initiates an automated <a> download sequence.
+   */
+  btnExportCsv.addEventListener('click', () => {
+      if (appState.invoices.length === 0) {
+          alert('No invoice data available to export.');
+          return;
+      }
+
+      // Build Headers
+      const headers = ['Date', 'Vendor', 'Description', 'Subtotal', 'Tax', 'Total'];
+      
+      // Build Rows
+      const csvRows = appState.invoices.map(inv => {
+          // Wrap string fields in double quotes and escape existing quotes to prevent breaking the CSV formatting
+          const safeVendor = `"${inv.vendor.replace(/"/g, '""')}"`;
+          const safeDesc = `"${inv.description.replace(/"/g, '""')}"`;
+          
+          return [
+              inv.date,
+              safeVendor,
+              safeDesc,
+              inv.subtotal.toFixed(2),
+              inv.tax.toFixed(2),
+              inv.total.toFixed(2)
+          ].join(',');
+      });
+
+      // Combine headers and rows with line breaks
+      const csvString = [headers.join(','), ...csvRows].join('\n');
+
+      // Create a virtual file via Blob and trigger the download
+      const blob = new Blob([csvString], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      
+      const link = document.createElement('a');
+      link.setAttribute('href', url);
+      link.setAttribute('download', `InvoiceParsimus_Export_${new Date().toISOString().split('T')[0]}.csv`);
+      link.style.display = 'none';
+      
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+  });
+
+  /**
+   * INITIALIZE CHARTS
    */
   function initCharts() {
-      // Shared Dark Theme Defaults
-      Chart.defaults.color = '#a1a1aa'; // zinc-400
+      Chart.defaults.color = '#a1a1aa'; 
       Chart.defaults.font.family = 'Inter';
 
-      // 1. Line Chart Initialization
       const spendCtx = document.getElementById('spendChart').getContext('2d');
       spendChartInstance = new Chart(spendCtx, {
           type: 'line',
@@ -376,11 +413,10 @@
                   y: { grid: { color: 'rgba(255,255,255,0.05)' }, beginAtZero: true },
                   x: { grid: { display: false } }
               },
-              elements: { line: { tension: 0.4 } } // Smooth curves
+              elements: { line: { tension: 0.4 } }
           }
       });
 
-      // 2. Pie Chart Initialization
       const vendorCtx = document.getElementById('vendorChart').getContext('2d');
       vendorChartInstance = new Chart(vendorCtx, {
           type: 'pie',
@@ -388,54 +424,38 @@
           options: {
               responsive: true,
               maintainAspectRatio: false,
-              plugins: {
-                  legend: { position: 'right', labels: { boxWidth: 12 } }
-              },
-              // Add a dark border to segments to match the zinc-950 background
+              plugins: { legend: { position: 'right', labels: { boxWidth: 12 } } },
               elements: { arc: { borderWidth: 2, borderColor: '#09090b' } }
           }
       });
   }
 
   /**
-   * DATA AGGREGATION & CHART UPDATING
-   * Feeds the parsed `appState.invoices` into the Chart.js instances.
+   * CHART UPDATER
    */
   function updateCharts() {
-      // 1. Dictionaries for grouping
       const monthlyTotals = {};
       const vendorTotals = {};
 
-      // 2. Aggregate logic
       appState.invoices.forEach(inv => {
-          // Group by Month (YYYY-MM to sort chronologically easily)
           const d = new Date(inv.date);
           const monthKey = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
           const monthLabel = d.toLocaleString('default', { month: 'short', year: 'numeric' });
 
-          if (!monthlyTotals[monthKey]) {
-              monthlyTotals[monthKey] = { label: monthLabel, total: 0 };
-          }
+          if (!monthlyTotals[monthKey]) monthlyTotals[monthKey] = { label: monthLabel, total: 0 };
           monthlyTotals[monthKey].total += inv.total;
 
-          // Group by Vendor
-          if (!vendorTotals[inv.vendor]) {
-              vendorTotals[inv.vendor] = 0;
-          }
+          if (!vendorTotals[inv.vendor]) vendorTotals[inv.vendor] = 0;
           vendorTotals[inv.vendor] += inv.total;
       });
 
-      // 3. Format Data for Line Chart (Time Series)
       const sortedMonths = Object.keys(monthlyTotals).sort();
-      const lineLabels = sortedMonths.map(k => monthlyTotals[k].label);
-      const lineData = sortedMonths.map(k => monthlyTotals[k].total);
-
       spendChartInstance.data = {
-          labels: lineLabels,
+          labels: sortedMonths.map(k => monthlyTotals[k].label),
           datasets: [{
               label: 'Total Spend ($)',
-              data: lineData,
-              borderColor: '#8b5cf6', // Violet-500
+              data: sortedMonths.map(k => monthlyTotals[k].total),
+              borderColor: '#8b5cf6',
               backgroundColor: 'rgba(139, 92, 246, 0.1)',
               borderWidth: 2,
               fill: true,
@@ -444,22 +464,13 @@
       };
       spendChartInstance.update();
 
-      // 4. Format Data for Pie Chart (Categorical)
       const sortedVendors = Object.entries(vendorTotals).sort((a, b) => b[1] - a[1]);
-      const pieLabels = sortedVendors.map(v => v[0]);
-      const pieData = sortedVendors.map(v => v[1]);
-
       vendorChartInstance.data = {
-          labels: pieLabels,
-          datasets: [{
-              data: pieData,
-              backgroundColor: chartColors,
-              hoverOffset: 4
-          }]
+          labels: sortedVendors.map(v => v[0]),
+          datasets: [{ data: sortedVendors.map(v => v[1]), backgroundColor: chartColors, hoverOffset: 4 }]
       };
       vendorChartInstance.update();
   }
-
 
   /**
    * DRAG, DROP & FILE HANDLING
@@ -500,8 +511,7 @@
               for (let i = 1; i <= pdf.numPages; i++) {
                   const page = await pdf.getPage(i);
                   const textContent = await page.getTextContent();
-                  const pageText = textContent.items.map(item => item.str).join(' ');
-                  fullText += pageText + " ";
+                  fullText += textContent.items.map(item => item.str).join(' ') + " ";
               }
               const invoiceData = extractInvoiceDataWithRegex(fullText);
               appState.invoices.push(invoiceData);
@@ -549,8 +559,7 @@
   function renderUI() {
       if (appState.invoices.length === 0) return;
 
-      let totalInvoiced = 0;
-      let totalTax = 0;
+      let totalInvoiced = 0, totalTax = 0;
       const vendors = new Set();
 
       appState.invoices.sort((a, b) => new Date(b.date) - new Date(a.date));
@@ -565,15 +574,14 @@
           const invoiceMonth = new Date(inv.date).toLocaleString('default', { month: 'long', year: 'numeric' });
           if (invoiceMonth !== currentMonth) {
               currentMonth = invoiceMonth;
-              const monthRow = `
+              tableBody.insertAdjacentHTML('beforeend', `
                   <tr class="border-t border-white/10 bg-white/[0.03]">
                       <td colspan="6" class="px-5 py-2.5 text-xs font-semibold text-zinc-100 uppercase tracking-wider">${currentMonth}</td>
                   </tr>
-              `;
-              tableBody.insertAdjacentHTML('beforeend', monthRow);
+              `);
           }
 
-          const row = `
+          tableBody.insertAdjacentHTML('beforeend', `
               <tr class="border-t border-white/5 hover:bg-white/[0.02] transition">
                   <td class="px-5 py-3.5 text-zinc-300 font-mono text-xs">${inv.date}</td>
                   <td class="px-5 py-3.5 text-zinc-200 font-medium">${inv.vendor}</td>
@@ -582,8 +590,7 @@
                   <td class="px-5 py-3.5 text-zinc-400 text-right font-mono tabular">$${inv.tax.toFixed(2)}</td>
                   <td class="px-5 py-3.5 text-zinc-100 font-semibold text-right font-mono tabular">$${inv.total.toFixed(2)}</td>
               </tr>
-          `;
-          tableBody.insertAdjacentHTML('beforeend', row);
+          `);
       });
 
       document.getElementById('dash-total').innerText = `$${totalInvoiced.toLocaleString('en-CA', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
@@ -592,7 +599,6 @@
       document.getElementById('dash-vendors').innerText = vendors.size;
       document.getElementById('table-entry-count').innerText = `${appState.invoices.length} entries`;
 
-      // Trigger Chart.js refresh
       updateCharts();
   }
 
