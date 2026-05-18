@@ -15,6 +15,8 @@
     pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
 </script>
 
+<script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
 <style>
@@ -22,43 +24,26 @@
   html, body { font-family: 'Inter', system-ui, sans-serif; }
   .font-mono { font-family: 'JetBrains Mono', monospace; }
   .tabular { font-variant-numeric: tabular-nums; }
-
   .bg-grid {
-    background-image:
-      linear-gradient(rgba(255,255,255,0.025) 1px, transparent 1px),
-      linear-gradient(90deg, rgba(255,255,255,0.025) 1px, transparent 1px);
+    background-image: linear-gradient(rgba(255,255,255,0.025) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.025) 1px, transparent 1px);
     background-size: 36px 36px;
     mask-image: radial-gradient(ellipse at top, rgba(0,0,0,0.9), transparent 70%);
     -webkit-mask-image: radial-gradient(ellipse at top, rgba(0,0,0,0.9), transparent 70%);
   }
-
   @keyframes pulse-dot { 0%,100% { opacity: 1; transform: scale(1);} 50% { opacity: .35; transform: scale(.85);} }
   .pulse-dot { animation: pulse-dot 2.2s ease-in-out infinite; }
-
-  @keyframes shimmer { 0% { background-position: -200% 0; } 100% { background-position: 200% 0; } }
-  .shimmer {
-    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.04), transparent);
-    background-size: 200% 100%;
-    animation: shimmer 3s linear infinite;
-  }
-
   ::-webkit-scrollbar { width: 10px; height: 10px; }
   ::-webkit-scrollbar-track { background: transparent; }
   ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.08); border-radius: 8px; }
   ::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.16); }
-
   .card { transition: transform .25s ease, border-color .25s ease, background .25s ease; }
   .card:hover { transform: translateY(-2px); border-color: rgba(255,255,255,0.12); }
-
   .dropzone-stripes {
-    background-image: repeating-linear-gradient(
-      45deg,
-      rgba(139,92,246,0.04) 0,
-      rgba(139,92,246,0.04) 10px,
-      transparent 10px,
-      transparent 20px
-    );
+    background-image: repeating-linear-gradient(45deg, rgba(139,92,246,0.04) 0, rgba(139,92,246,0.04) 10px, transparent 10px, transparent 20px);
   }
+  /* Loading spinner for OCR */
+  @keyframes spin { 100% { transform: rotate(360deg); } }
+  .spinner { animation: spin 1s linear infinite; }
 </style>
 </head>
 <body class="bg-slate-950 text-zinc-100 antialiased min-h-screen relative overflow-x-hidden">
@@ -81,36 +66,32 @@
       </div>
       <div class="leading-tight">
         <h1 class="font-semibold tracking-tight text-[15px]">InvoiceParsimus</h1>
-        <p class="text-[11px] text-zinc-500">Invoice Data Extractor · v1.0</p>
+        <p class="text-[11px] text-zinc-500">OCR Data Extractor · v2.0</p>
       </div>
     </div>
-
     <div class="flex items-center gap-2">
       <div class="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20">
-        <span class="relative flex w-1.5 h-1.5">
-          <span class="absolute inset-0 rounded-full bg-emerald-400 pulse-dot"></span>
-        </span>
-        <span class="text-[11px] font-medium tracking-wide text-emerald-300">READY</span>
+        <span class="relative flex w-1.5 h-1.5"><span class="absolute inset-0 rounded-full bg-emerald-400 pulse-dot"></span></span>
+        <span class="text-[11px] font-medium tracking-wide text-emerald-300">OCR ACTIVE</span>
       </div>
     </div>
   </div>
 </header>
 
 <main class="max-w-7xl mx-auto px-6 py-10 space-y-8">
-
   <section class="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
     <div>
       <p class="text-xs uppercase tracking-[0.18em] text-zinc-500 mb-2">Overview</p>
       <h2 class="text-3xl sm:text-4xl font-bold tracking-tight">Invoice Analytics</h2>
-      <p class="text-sm text-zinc-400 mt-1.5">Extract and sort PDF invoices directly in your browser.</p>
+      <p class="text-sm text-zinc-400 mt-1.5">Extract and sort PDF invoices directly using machine vision.</p>
     </div>
     <div class="flex items-center gap-2">
       <button id="btn-export-csv" class="px-4 py-2 text-sm rounded-lg bg-white/[0.04] hover:bg-white/[0.08] border border-white/10 text-zinc-200 transition flex items-center gap-2">
-        <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
         Export CSV
       </button>
       <button id="btn-mock-data" class="px-4 py-2 text-sm font-medium rounded-lg bg-gradient-to-br from-violet-500 to-indigo-600 hover:from-violet-400 hover:to-indigo-500 text-white transition shadow-lg shadow-violet-500/25 flex items-center gap-2">
-        <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
         Insert Mock Invoices
       </button>
     </div>
@@ -122,9 +103,7 @@
       <div class="relative">
         <div class="flex items-center justify-between mb-4">
           <div class="flex items-center gap-2">
-            <div class="w-8 h-8 rounded-lg bg-violet-500/15 border border-violet-500/20 flex items-center justify-center text-violet-300">
-              <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg>
-            </div>
+            <div class="w-8 h-8 rounded-lg bg-violet-500/15 border border-violet-500/20 flex items-center justify-center text-violet-300"><svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg></div>
             <span class="text-xs uppercase tracking-wider text-zinc-500">Total Invoiced</span>
           </div>
           <span class="text-[10px] font-medium px-1.5 py-0.5 rounded bg-white/5 text-zinc-400">CAD</span>
@@ -132,48 +111,39 @@
         <div class="font-mono tabular text-3xl font-semibold text-white" id="dash-total">$0.00</div>
       </div>
     </div>
-
     <div class="card relative overflow-hidden rounded-2xl bg-gradient-to-br from-zinc-900/90 to-zinc-900/40 border border-white/5 p-5">
       <div class="absolute -top-12 -right-12 w-36 h-36 rounded-full bg-rose-500/10 blur-2xl"></div>
       <div class="relative">
         <div class="flex items-center justify-between mb-4">
           <div class="flex items-center gap-2">
-            <div class="w-8 h-8 rounded-lg bg-rose-500/15 border border-rose-500/20 flex items-center justify-center text-rose-300">
-              <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="7 13 12 18 17 13"/><polyline points="7 6 12 11 17 6"/></svg>
-            </div>
-            <span class="text-xs uppercase tracking-wider text-zinc-500">Total Tax Paid</span>
+            <div class="w-8 h-8 rounded-lg bg-rose-500/15 border border-rose-500/20 flex items-center justify-center text-rose-300"><svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="7 13 12 18 17 13"/><polyline points="7 6 12 11 17 6"/></svg></div>
+            <span class="text-xs uppercase tracking-wider text-zinc-500">Total Tax</span>
           </div>
           <span class="text-[10px] font-medium px-1.5 py-0.5 rounded bg-rose-500/10 text-rose-300">GST/HST</span>
         </div>
         <div class="font-mono tabular text-3xl font-semibold text-white" id="dash-tax">$0.00</div>
       </div>
     </div>
-
     <div class="card relative overflow-hidden rounded-2xl bg-gradient-to-br from-zinc-900/90 to-zinc-900/40 border border-white/5 p-5">
       <div class="absolute -top-12 -right-12 w-36 h-36 rounded-full bg-emerald-500/10 blur-2xl"></div>
       <div class="relative">
         <div class="flex items-center justify-between mb-4">
           <div class="flex items-center gap-2">
-            <div class="w-8 h-8 rounded-lg bg-emerald-500/15 border border-emerald-500/20 flex items-center justify-center text-emerald-300">
-              <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="17 11 12 6 7 11"/><polyline points="17 18 12 13 7 18"/></svg>
-            </div>
-            <span class="text-xs uppercase tracking-wider text-zinc-500">Invoices Processed</span>
+            <div class="w-8 h-8 rounded-lg bg-emerald-500/15 border border-emerald-500/20 flex items-center justify-center text-emerald-300"><svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="17 11 12 6 7 11"/><polyline points="17 18 12 13 7 18"/></svg></div>
+            <span class="text-xs uppercase tracking-wider text-zinc-500">Processed</span>
           </div>
           <span class="text-[10px] font-medium px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-300">ALL</span>
         </div>
         <div class="font-mono tabular text-3xl font-semibold text-white" id="dash-count">0</div>
       </div>
     </div>
-
     <div class="card relative overflow-hidden rounded-2xl bg-gradient-to-br from-zinc-900/90 to-zinc-900/40 border border-white/5 p-5">
       <div class="absolute -top-12 -right-12 w-36 h-36 rounded-full bg-sky-500/10 blur-2xl"></div>
       <div class="relative">
         <div class="flex items-center justify-between mb-4">
           <div class="flex items-center gap-2">
-            <div class="w-8 h-8 rounded-lg bg-sky-500/15 border border-sky-500/20 flex items-center justify-center text-sky-300">
-              <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
-            </div>
-            <span class="text-xs uppercase tracking-wider text-zinc-500">Active Vendors</span>
+            <div class="w-8 h-8 rounded-lg bg-sky-500/15 border border-sky-500/20 flex items-center justify-center text-sky-300"><svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg></div>
+            <span class="text-xs uppercase tracking-wider text-zinc-500">Vendors</span>
           </div>
           <span class="text-[10px] font-medium px-1.5 py-0.5 rounded bg-white/5 text-zinc-400">UNIQUE</span>
         </div>
@@ -182,71 +152,34 @@
     </div>
   </section>
 
-  <section class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-    <div class="card rounded-2xl bg-zinc-900/50 border border-white/5 p-5">
-      <div class="flex items-center justify-between mb-4">
-        <h3 class="text-sm font-semibold text-zinc-200">Monthly Spend Trend</h3>
-        <span class="text-[10px] font-medium px-1.5 py-0.5 rounded bg-white/5 text-zinc-400">OVER TIME</span>
-      </div>
-      <div class="relative h-64 w-full">
-        <canvas id="spendChart"></canvas>
-      </div>
-    </div>
-
-    <div class="card rounded-2xl bg-zinc-900/50 border border-white/5 p-5">
-      <div class="flex items-center justify-between mb-4">
-        <h3 class="text-sm font-semibold text-zinc-200">Vendor Distribution</h3>
-        <span class="text-[10px] font-medium px-1.5 py-0.5 rounded bg-white/5 text-zinc-400">BY TOTAL ($)</span>
-      </div>
-      <div class="relative h-64 w-full">
-        <canvas id="vendorChart"></canvas>
-      </div>
-    </div>
-  </section>
-
   <section>
-    <div class="flex items-center justify-between mb-3">
-      <div>
-        <h3 class="text-sm font-semibold text-zinc-200">Import Invoices</h3>
-        <p class="text-xs text-zinc-500">Drop PDF files or browse to extract data.</p>
-      </div>
-      <div class="hidden sm:flex items-center gap-2 text-xs text-zinc-500">
-        <span class="px-2 py-1 rounded-md bg-white/[0.03] border border-white/5 font-mono text-violet-300">PDF</span>
-      </div>
-    </div>
-
-    <div id="dropzone" class="relative rounded-2xl border-2 border-dashed border-white/10 hover:border-violet-400/40 bg-zinc-900/30 dropzone-stripes transition-all group cursor-pointer">
+    <div id="dropzone" class="relative rounded-2xl border-2 border-dashed border-white/10 hover:border-violet-400/40 bg-zinc-900/30 dropzone-stripes transition-all group cursor-pointer overflow-hidden">
       <div class="absolute inset-x-0 -top-px h-px bg-gradient-to-r from-transparent via-violet-500/40 to-transparent"></div>
-      <div class="flex flex-col items-center text-center px-6 py-14">
+      
+      <div id="dropzone-content" class="flex flex-col items-center text-center px-6 py-14">
         <div class="relative w-20 h-20 mb-5">
           <div class="absolute inset-0 rounded-2xl bg-gradient-to-br from-violet-500/20 to-indigo-500/10 border border-white/5 group-hover:from-violet-500/30 group-hover:to-indigo-500/20 transition"></div>
           <div class="absolute inset-0 flex items-center justify-center text-violet-300 group-hover:scale-105 transition">
-            <svg class="w-9 h-9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-              <polyline points="17 8 12 3 7 8"/>
-              <line x1="12" y1="3" x2="12" y2="15"/>
-            </svg>
+            <svg class="w-9 h-9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
           </div>
         </div>
         <h3 class="text-lg font-semibold text-zinc-100">Drop PDF Invoices here</h3>
-        <p class="text-sm text-zinc-500 mt-1.5 max-w-sm">We'll parse amounts, dates, and vendors automatically locally.</p>
-        <div class="mt-5 flex items-center gap-3">
-          <button class="px-4 py-2 text-sm font-medium rounded-lg bg-white/[0.05] hover:bg-white/[0.1] border border-white/10 transition flex items-center gap-2">
-            <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><polyline points="13 2 13 9 20 9"/></svg>
-            Browse files
-          </button>
-        </div>
-        <input type="file" id="file-input" class="hidden" accept="application/pdf" multiple />
+        <p class="text-sm text-zinc-500 mt-1.5 max-w-sm">Powered by Tesseract OCR. We'll scan the document locally.</p>
       </div>
+
+      <div id="dropzone-loading" class="hidden flex-col items-center text-center px-6 py-14">
+        <svg class="spinner w-12 h-12 text-violet-500 mb-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>
+        <h3 class="text-lg font-semibold text-zinc-100">Running Machine Vision...</h3>
+        <p class="text-sm text-zinc-500 mt-1.5">Reading document text. This takes a few seconds per page.</p>
+      </div>
+
+      <input type="file" id="file-input" class="hidden" accept="application/pdf, image/png, image/jpeg" multiple />
     </div>
   </section>
 
   <section class="rounded-2xl bg-zinc-900/50 border border-white/5 overflow-hidden">
     <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 px-5 py-4 border-b border-white/5">
-      <div class="flex items-center gap-3">
-        <h3 class="font-semibold text-zinc-100">Parsed Invoices</h3>
-        <span class="text-[11px] font-mono px-2 py-0.5 rounded-md bg-white/5 border border-white/5 text-zinc-400" id="table-entry-count">0 entries</span>
-      </div>
+      <h3 class="font-semibold text-zinc-100">Parsed Invoices</h3>
     </div>
     <div class="overflow-x-auto">
       <table class="w-full text-sm">
@@ -261,238 +194,105 @@
           </tr>
         </thead>
         <tbody id="invoice-table-body">
-          <tr id="empty-state-row">
-            <td colspan="6" class="px-6 py-20">
-              <div class="flex flex-col items-center text-center">
-                <div class="relative w-14 h-14 mb-4">
-                  <div class="absolute inset-0 rounded-2xl bg-white/[0.03] border border-white/5 flex items-center justify-center text-zinc-500">
-                    <svg class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-                  </div>
-                </div>
-                <h4 class="font-medium text-zinc-200">No invoices processed</h4>
-                <p class="text-sm text-zinc-500 mt-1 max-w-xs">Drop a PDF above or insert mock data to populate this ledger.</p>
-              </div>
-            </td>
-          </tr>
-        </tbody>
+          </tbody>
       </table>
     </div>
+  </section>
+  
+  <section class="grid grid-cols-1 lg:grid-cols-2 gap-6 pb-10">
+    <div class="card rounded-2xl bg-zinc-900/50 border border-white/5 p-5"><div class="relative h-64 w-full"><canvas id="spendChart"></canvas></div></div>
+    <div class="card rounded-2xl bg-zinc-900/50 border border-white/5 p-5"><div class="relative h-64 w-full"><canvas id="vendorChart"></canvas></div></div>
   </section>
 
 </main>
 
-<footer class="border-t border-white/5 mt-12">
-  <div class="max-w-7xl mx-auto px-6 py-6 flex flex-col sm:flex-row items-center justify-between gap-2 text-xs text-zinc-500">
-    <div class="flex items-center gap-2">
-      <div class="w-1.5 h-1.5 rounded-full bg-violet-500"></div>
-      <span>InvoiceParsimus &copy; 2026 · Built for clarity</span>
-    </div>
-    <div class="flex items-center gap-4 font-mono">
-      <span>v1.0.0-final</span>
-      <span class="text-zinc-600">·</span>
-      <span>local-only</span>
-    </div>
-  </div>
-</footer>
-
 <script>
-  /**
-   * STATE MANAGEMENT
-   */
-  const appState = {
-      invoices: []
-  };
+  const appState = { invoices: [] };
 
-  // DOM Nodes
   const dropzone = document.getElementById('dropzone');
   const fileInput = document.getElementById('file-input');
-  const btnMockData = document.getElementById('btn-mock-data');
-  const btnExportCsv = document.getElementById('btn-export-csv');
+  const dropzoneContent = document.getElementById('dropzone-content');
+  const dropzoneLoading = document.getElementById('dropzone-loading');
   const tableBody = document.getElementById('invoice-table-body');
+  
+  let spendChartInstance, vendorChartInstance;
 
-  // Chart instances
-  let spendChartInstance = null;
-  let vendorChartInstance = null;
-  const chartColors = ['#8b5cf6', '#0ea5e9', '#10b981', '#f43f5e', '#f59e0b', '#ec4899'];
-
-  /**
-   * DATA EXPORT (CSV COMPILATION)
-   */
-  btnExportCsv.addEventListener('click', () => {
-      if (appState.invoices.length === 0) {
-          alert('No invoice data available to export.');
-          return;
-      }
-
-      const headers = ['Date', 'Vendor', 'Description', 'Subtotal', 'Tax', 'Total'];
-      
-      const csvRows = appState.invoices.map(inv => {
-          const safeVendor = `"${inv.vendor.replace(/"/g, '""')}"`;
-          const safeDesc = `"${inv.description.replace(/"/g, '""')}"`;
-          
-          return [
-              inv.date,
-              safeVendor,
-              safeDesc,
-              inv.subtotal.toFixed(2),
-              inv.tax.toFixed(2),
-              inv.total.toFixed(2)
-          ].join(',');
-      });
-
-      const csvString = [headers.join(','), ...csvRows].join('\n');
-      const blob = new Blob([csvString], { type: 'text/csv;charset=utf-8;' });
-      const url = URL.createObjectURL(blob);
-      
-      const link = document.createElement('a');
-      link.setAttribute('href', url);
-      link.setAttribute('download', `InvoiceParsimus_Export_${new Date().toISOString().split('T')[0]}.csv`);
-      link.style.display = 'none';
-      
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-  });
-
-  /**
-   * INITIALIZE CHARTS
-   */
-  function initCharts() {
-      Chart.defaults.color = '#a1a1aa'; 
-      Chart.defaults.font.family = 'Inter';
-
-      const spendCtx = document.getElementById('spendChart').getContext('2d');
-      spendChartInstance = new Chart(spendCtx, {
-          type: 'line',
-          data: { labels: [], datasets: [] },
-          options: {
-              responsive: true,
-              maintainAspectRatio: false,
-              plugins: { legend: { display: false } },
-              scales: {
-                  y: { grid: { color: 'rgba(255,255,255,0.05)' }, beginAtZero: true },
-                  x: { grid: { display: false } }
-              },
-              elements: { line: { tension: 0.4 } }
-          }
-      });
-
-      const vendorCtx = document.getElementById('vendorChart').getContext('2d');
-      vendorChartInstance = new Chart(vendorCtx, {
-          type: 'pie',
-          data: { labels: [], datasets: [] },
-          options: {
-              responsive: true,
-              maintainAspectRatio: false,
-              plugins: { legend: { position: 'right', labels: { boxWidth: 12 } } },
-              elements: { arc: { borderWidth: 2, borderColor: '#09090b' } }
-          }
-      });
-  }
-
-  /**
-   * CHART UPDATER
-   */
-  function updateCharts() {
-      const monthlyTotals = {};
-      const vendorTotals = {};
-
-      appState.invoices.forEach(inv => {
-          const d = new Date(inv.date);
-          const monthKey = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-          const monthLabel = d.toLocaleString('default', { month: 'short', year: 'numeric' });
-
-          if (!monthlyTotals[monthKey]) monthlyTotals[monthKey] = { label: monthLabel, total: 0 };
-          monthlyTotals[monthKey].total += inv.total;
-
-          if (!vendorTotals[inv.vendor]) vendorTotals[inv.vendor] = 0;
-          vendorTotals[inv.vendor] += inv.total;
-      });
-
-      const sortedMonths = Object.keys(monthlyTotals).sort();
-      spendChartInstance.data = {
-          labels: sortedMonths.map(k => monthlyTotals[k].label),
-          datasets: [{
-              label: 'Total Spend ($)',
-              data: sortedMonths.map(k => monthlyTotals[k].total),
-              borderColor: '#8b5cf6',
-              backgroundColor: 'rgba(139, 92, 246, 0.1)',
-              borderWidth: 2,
-              fill: true,
-              pointBackgroundColor: '#8b5cf6',
-          }]
-      };
-      spendChartInstance.update();
-
-      const sortedVendors = Object.entries(vendorTotals).sort((a, b) => b[1] - a[1]);
-      vendorChartInstance.data = {
-          labels: sortedVendors.map(v => v[0]),
-          datasets: [{ data: sortedVendors.map(v => v[1]), backgroundColor: chartColors, hoverOffset: 4 }]
-      };
-      vendorChartInstance.update();
-  }
-
-  /**
-   * DRAG, DROP & FILE HANDLING
-   */
+  // --- DRAG AND DROP ---
   dropzone.addEventListener('click', () => fileInput.click());
-  dropzone.addEventListener('dragover', (e) => {
-      e.preventDefault();
-      dropzone.classList.add('border-violet-400', 'bg-violet-900/20');
-  });
-  dropzone.addEventListener('dragleave', () => {
-      dropzone.classList.remove('border-violet-400', 'bg-violet-900/20');
-  });
+  dropzone.addEventListener('dragover', (e) => { e.preventDefault(); dropzone.classList.add('border-violet-400'); });
+  dropzone.addEventListener('dragleave', () => dropzone.classList.remove('border-violet-400'));
   dropzone.addEventListener('drop', (e) => {
       e.preventDefault();
-      dropzone.classList.remove('border-violet-400', 'bg-violet-900/20');
+      dropzone.classList.remove('border-violet-400');
       if (e.dataTransfer.files.length) handleFiles(e.dataTransfer.files);
   });
   fileInput.addEventListener('change', (e) => {
       if (e.target.files.length) handleFiles(e.target.files);
   });
 
-  function handleFiles(files) {
-      Array.from(files).forEach(file => {
-          if (file.type === 'application/pdf') parsePDF(file);
-      });
-  }
+  // --- FILE ROUTER ---
+  async function handleFiles(files) {
+      dropzoneContent.classList.add('hidden');
+      dropzoneLoading.classList.remove('hidden');
+      dropzoneLoading.classList.add('flex');
 
-  /**
-   * PDF.JS PROCESSING
-   */
-  async function parsePDF(file) {
-      const reader = new FileReader();
-      reader.onload = async function() {
-          const typedarray = new Uint8Array(this.result);
-          try {
-              const pdf = await pdfjsLib.getDocument(typedarray).promise;
-              let fullText = "";
-              for (let i = 1; i <= pdf.numPages; i++) {
-                  const page = await pdf.getPage(i);
-                  const textContent = await page.getTextContent();
-                  fullText += textContent.items.map(item => item.str).join(' ') + " ";
-              }
-              const invoiceData = extractInvoiceDataWithRegex(fullText);
-              appState.invoices.push(invoiceData);
-              renderUI();
-          } catch (error) {
-              console.error("Error parsing PDF: ", error);
-              alert("Failed to parse the PDF document.");
+      for (const file of Array.from(files)) {
+          if (file.type === 'application/pdf') {
+              await parsePDFWithOCR(file);
+          } else if (file.type.startsWith('image/')) {
+              await parseImageWithOCR(file);
           }
-      };
-      reader.readAsArrayBuffer(file);
+      }
+
+      dropzoneLoading.classList.add('hidden');
+      dropzoneLoading.classList.remove('flex');
+      dropzoneContent.classList.remove('hidden');
   }
 
-  /**
-   * REGEX PARSING & DYNAMIC DESCRIPTION
-   */
-  function extractInvoiceDataWithRegex(text) {
-      const cleanText = text.replace(/\s+/g, ' ');
-      const dateMatch = cleanText.match(/\b(?:\d{4}[-/]\d{2}[-/]\d{2}|\d{1,2}[-/]\d{1,2}[-/]\d{2,4})\b/);
-      const subtotalMatch = cleanText.match(/Subtotal[\s:$]*([0-9,]+\.\d{2})/i);
-      const taxMatch = cleanText.match(/(?:Tax|GST|HST)[\s:$]*([0-9,]+\.\d{2})/i);
-      const totalMatch = cleanText.match(/(?:Total|Amount Due|Balance Due)[\s:$]*([0-9,]+\.\d{2})/i);
+  // --- PDF TO IMAGE TO OCR ---
+  async function parsePDFWithOCR(file) {
+      const arrayBuffer = await file.arrayBuffer();
+      const pdf = await pdfjsLib.getDocument(new Uint8Array(arrayBuffer)).promise;
+      let fullText = "";
+
+      for (let i = 1; i <= pdf.numPages; i++) {
+          const page = await pdf.getPage(i);
+          // Scale it up for better OCR clarity
+          const viewport = page.getViewport({ scale: 2.0 }); 
+          
+          const canvas = document.createElement('canvas');
+          const ctx = canvas.getContext('2d');
+          canvas.height = viewport.height;
+          canvas.width = viewport.width;
+
+          await page.render({ canvasContext: ctx, viewport: viewport }).promise;
+
+          // Pass the rendered canvas picture to Tesseract
+          console.log("Running OCR on page " + i);
+          const { data: { text } } = await Tesseract.recognize(canvas, 'eng');
+          fullText += text + " ";
+      }
+
+      processExtractedText(fullText);
+  }
+
+  // --- IMAGE TO OCR (BONUS FEATURE) ---
+  async function parseImageWithOCR(file) {
+      console.log("Running OCR on Image");
+      const { data: { text } } = await Tesseract.recognize(file, 'eng');
+      processExtractedText(text);
+  }
+
+  // --- REGEX BRAIN (FOR OCR TEXT) ---
+  function processExtractedText(text) {
+      console.log("OCR OUTPUT:", text); // Helpful if you need to debug later
+      const cleanText = text.replace(/\n/g, ' ').replace(/\s+/g, ' ');
+      
+      const dateMatch = cleanText.match(/\b(?:\d{4}[-/]\d{2}[-/]\d{2}|\d{1,2}[-/]\d{1,2}[-/]\d{2,4}|\w{3}\s\d{1,2},?\s\d{4})\b/);
+      // Looser Regex to catch OCR mistakes like "Subtota1" or missing colons
+      const subtotalMatch = cleanText.match(/(?:Subtotal|Sub-total)[\s:$]*([0-9,]+\.\d{2})/i);
+      const taxMatch = cleanText.match(/(?:Tax|GST|HST|VAT)[\s:$]*([0-9,]+\.\d{2})/i);
+      const totalMatch = cleanText.match(/(?:Total|Amount Due|Balance)[\s:$]*([0-9,]+\.\d{2})/i);
 
       const dateStr = dateMatch ? dateMatch[0] : new Date().toISOString().split('T')[0];
       const subtotal = subtotalMatch ? parseFloat(subtotalMatch[1].replace(/,/g, '')) : 0.00;
@@ -500,51 +300,35 @@
       const total = totalMatch ? parseFloat(totalMatch[1].replace(/,/g, '')) : (subtotal + tax);
 
       let vendorName = "Unknown Vendor";
-      const vendorMatch = cleanText.match(/Vendor[:\s]+([A-Za-z\s]+)(?=\b[A-Z])/i);
+      const vendorMatch = cleanText.match(/(?:Vendor|From|Billed By)[\s:]+([A-Za-z0-9\s]+?)(?=\s[A-Z0-9]|$)/i);
       if (vendorMatch) vendorName = vendorMatch[1].trim();
 
-      // Dynamically generated description based on vendor discovery
-      const autoDescription = vendorName !== "Unknown Vendor" 
-          ? `Auto-Parsed: ${vendorName} Receipt` 
-          : "Extracted Invoice Record";
-
-      return {
+      appState.invoices.push({
           date: dateStr,
           vendor: vendorName,
-          description: autoDescription,
-          subtotal: subtotal,
-          tax: tax,
-          total: total
-      };
+          description: `OCR Scan: ${vendorName !== "Unknown Vendor" ? vendorName : "Receipt"}`,
+          subtotal, tax, total
+      });
+
+      renderUI();
   }
 
-  /**
-   * UI RENDER ENGINE
-   */
+  // --- UI AND CHART UPDATES ---
   function renderUI() {
-      if (appState.invoices.length === 0) return;
+      if (appState.invoices.length === 0) {
+          tableBody.innerHTML = `<tr><td colspan="6" class="px-6 py-20 text-center text-zinc-500">No invoices processed. Drop a file to begin.</td></tr>`;
+          return;
+      }
 
       let totalInvoiced = 0, totalTax = 0;
       const vendors = new Set();
-
       appState.invoices.sort((a, b) => new Date(b.date) - new Date(a.date));
+      
       tableBody.innerHTML = "";
-      let currentMonth = "";
-
       appState.invoices.forEach(inv => {
           totalInvoiced += inv.total;
           totalTax += inv.tax;
           vendors.add(inv.vendor);
-
-          const invoiceMonth = new Date(inv.date).toLocaleString('default', { month: 'long', year: 'numeric' });
-          if (invoiceMonth !== currentMonth) {
-              currentMonth = invoiceMonth;
-              tableBody.insertAdjacentHTML('beforeend', `
-                  <tr class="border-t border-white/10 bg-white/[0.03]">
-                      <td colspan="6" class="px-5 py-2.5 text-xs font-semibold text-zinc-100 uppercase tracking-wider">${currentMonth}</td>
-                  </tr>
-              `);
-          }
 
           tableBody.insertAdjacentHTML('beforeend', `
               <tr class="border-t border-white/5 hover:bg-white/[0.02] transition">
@@ -558,35 +342,57 @@
           `);
       });
 
-      document.getElementById('dash-total').innerText = `$${totalInvoiced.toLocaleString('en-CA', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
-      document.getElementById('dash-tax').innerText = `$${totalTax.toLocaleString('en-CA', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+      document.getElementById('dash-total').innerText = `$${totalInvoiced.toLocaleString('en-CA', {minimumFractionDigits: 2})}`;
+      document.getElementById('dash-tax').innerText = `$${totalTax.toLocaleString('en-CA', {minimumFractionDigits: 2})}`;
       document.getElementById('dash-count').innerText = appState.invoices.length;
       document.getElementById('dash-vendors').innerText = vendors.size;
-      document.getElementById('table-entry-count').innerText = `${appState.invoices.length} entries`;
 
       updateCharts();
   }
 
-  /**
-   * MOCK DATA SEEDER
-   */
-  btnMockData.addEventListener('click', () => {
-      const mockData = [
-          { date: '2026-05-15', vendor: 'Printify', description: 'Desk Mat Fulfillment - AtelierKYU', subtotal: 150.00, tax: 19.50, total: 169.50 },
-          { date: '2026-05-12', vendor: 'Midjourney', description: 'AI Image Generation Sub', subtotal: 45.50, tax: 5.92, total: 51.42 },
-          { date: '2026-04-28', vendor: 'Notion', description: 'Workspace Plus', subtotal: 80.00, tax: 10.40, total: 90.40 },
-          { date: '2026-04-15', vendor: 'ElevenLabs', description: 'Creator Audio API', subtotal: 22.00, tax: 2.86, total: 24.86 },
-          { date: '2026-03-20', vendor: 'n8n', description: 'Workflow Automation Cloud', subtotal: 50.00, tax: 6.50, total: 56.50 },
-          { date: '2026-03-10', vendor: 'Yokohama Motors', description: 'Suzuki Carry Import Parts', subtotal: 350.00, tax: 45.50, total: 395.50 }
-      ];
-      
-      appState.invoices = [...appState.invoices, ...mockData];
+  function initCharts() {
+      Chart.defaults.color = '#a1a1aa'; Chart.defaults.font.family = 'Inter';
+      spendChartInstance = new Chart(document.getElementById('spendChart').getContext('2d'), { type: 'line', data: { labels: [], datasets: [] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, elements: { line: { tension: 0.4 } }, scales: { y: { grid: { color: 'rgba(255,255,255,0.05)' }, beginAtZero: true }, x: { grid: { display: false } } } } });
+      vendorChartInstance = new Chart(document.getElementById('vendorChart').getContext('2d'), { type: 'pie', data: { labels: [], datasets: [] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'right' } }, elements: { arc: { borderWidth: 2, borderColor: '#09090b' } } } });
+  }
+
+  function updateCharts() {
+      const monthly = {}, vendors = {};
+      appState.invoices.forEach(inv => {
+          const d = new Date(inv.date);
+          const k = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+          if (!monthly[k]) monthly[k] = { label: d.toLocaleString('default', { month: 'short', year: 'numeric' }), total: 0 };
+          monthly[k].total += inv.total;
+          if (!vendors[inv.vendor]) vendors[inv.vendor] = 0;
+          vendors[inv.vendor] += inv.total;
+      });
+
+      const mKeys = Object.keys(monthly).sort();
+      spendChartInstance.data = { labels: mKeys.map(k => monthly[k].label), datasets: [{ data: mKeys.map(k => monthly[k].total), borderColor: '#8b5cf6', backgroundColor: 'rgba(139, 92, 246, 0.1)', borderWidth: 2, fill: true }] };
+      spendChartInstance.update();
+
+      const vKeys = Object.entries(vendors).sort((a, b) => b[1] - a[1]);
+      vendorChartInstance.data = { labels: vKeys.map(v => v[0]), datasets: [{ data: vKeys.map(v => v[1]), backgroundColor: ['#8b5cf6', '#0ea5e9', '#10b981', '#f43f5e', '#f59e0b', '#ec4899'] }] };
+      vendorChartInstance.update();
+  }
+
+  document.getElementById('btn-mock-data').addEventListener('click', () => {
+      appState.invoices.push({ date: '2026-05-15', vendor: 'Printify', description: 'Mock Data Load', subtotal: 150.00, tax: 19.50, total: 169.50 });
       renderUI();
   });
 
-  // Boot the charts on page load
-  window.addEventListener('DOMContentLoaded', initCharts);
+  document.getElementById('btn-export-csv').addEventListener('click', () => {
+      const rows = appState.invoices.map(i => `${i.date},"${i.vendor}","${i.description}",${i.subtotal},${i.tax},${i.total}`);
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(new Blob([['Date,Vendor,Description,Subtotal,Tax,Total', ...rows].join('\n')], { type: 'text/csv' }));
+      link.download = 'InvoiceParsimus_OCR_Export.csv';
+      link.click();
+  });
 
+  window.addEventListener('DOMContentLoaded', () => {
+      initCharts();
+      renderUI();
+  });
 </script>
 </body>
 </html>
